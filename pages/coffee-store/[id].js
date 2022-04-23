@@ -3,23 +3,29 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { useRouter } from 'next/router'
 import cls from 'classnames'
-
-import coffeeStoresData from '../../data/coffee-stores.json'
+import { fetchCoffeeStores } from '../../lib/coffee-stores'
+// import coffeeStoresData from '../../data/coffee-stores.json'
 import styles from '../../styles/coffee-store.module.css'
+import { useContext, useState, useEffect } from 'react'
+import { StoreContext } from '../../store/store-context'
+import { isEmpty } from '../../utils'
 
-export function getStaticProps(staticProps) {
+export async function getStaticProps(staticProps) {
+  const coffeeStores = await fetchCoffeeStores()
   const params = staticProps.params
+  const findCoffeeStoreById = coffeeStores.find((coffeeStore) => {
+    return coffeeStore.id.toString() === params.id // dynamic id
+  })
   return {
     props: {
-      coffeeStore: coffeeStoresData.find((coffeeStore) => {
-        return coffeeStore.id === +params.id // dynamic id
-      }),
+      coffeeStore: findCoffeeStoreById ? findCoffeeStoreById : {},
     },
   }
 }
 
-export function getStaticPaths() {
-  const paths = coffeeStoresData.map((coffeeStore) => {
+export async function getStaticPaths() {
+  const coffeeStores = await fetchCoffeeStores()
+  const paths = coffeeStores.map((coffeeStore) => {
     return {
       params: {
         id: coffeeStore.id.toString(),
@@ -32,14 +38,35 @@ export function getStaticPaths() {
   }
 }
 
-const CoffeeStore = (props) => {
-  const route = useRouter()
-  if (route.isFallback) {
+const CoffeeStore = (initialProps) => {
+  const router = useRouter()
+
+  if (router.isFallback) {
     return <div>Loading...</div>
   }
-  const { address, name, neighbourhood, imgUrl } = props.coffeeStore
+
+  const id = router.query.id
+
+  const [coffeeStore, setCoffeeStore] = useState(initialProps.coffeeStore)
+
+  const {
+    state: { coffeeStores },
+  } = useContext(StoreContext)
+
+  useEffect(() => {
+    if (isEmpty(initialProps.coffeeStore)) {
+      if (coffeeStores.length > 0) {
+        const findCoffeeStoreById = coffeeStores.find((coffeeStore) => {
+          return coffeeStore.id.toString() === id // dynamic id
+        })
+        setCoffeeStore(findCoffeeStoreById)
+      }
+    }
+  }, [id])
+
+  const { name, address, neighborhood, imgUrl } = coffeeStore
   const handleUpvoteButton = () => {
-    console.log('Handle upvote!')
+    // console.log('Handle upvote!')
   }
   return (
     <div className={styles.layout}>
@@ -58,7 +85,10 @@ const CoffeeStore = (props) => {
           </div>
           <div className={styles.storeImgWrapper}>
             <Image
-              src={imgUrl}
+              src={
+                imgUrl ||
+                'https://images.unsplash.com/photo-1504753793650-d4a2b783c15e?ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&ixlib=rb-1.2.1&auto=format&fit=crop&w=2000&q=80'
+              }
               width={600}
               height={360}
               className={styles.storeImg}
@@ -72,10 +102,12 @@ const CoffeeStore = (props) => {
             <Image src='/static/icons/places.svg' width='24' height='24' />
             <p className={styles.text}>{address}</p>
           </div>
-          <div className={styles.iconWrapper}>
-            <Image src='/static/icons/nearMe.svg' width='24' height='24' />
-            <p className={styles.text}>{neighbourhood}</p>
-          </div>
+          {neighborhood && (
+            <div className={styles.iconWrapper}>
+              <Image src='/static/icons/nearMe.svg' width='24' height='24' />
+              <p className={styles.text}>{neighborhood}</p>
+            </div>
+          )}
           <div className={styles.iconWrapper}>
             <Image src='/static/icons/star.svg' width='24' height='24' />
             <p className={styles.text}>1</p>

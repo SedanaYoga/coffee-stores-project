@@ -35,6 +35,10 @@
   margin-top: 1.25rem;
 }
 
+.sectionWrapper {
+  margin-top: 5rem;
+}
+
 .button {
   background-color: var(--text-purple-dark);
   cursor: pointer;
